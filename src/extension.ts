@@ -39,15 +39,15 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("waldo.showStats", showStatsCommand),
     vscode.commands.registerCommand("waldo.startTimer", () => {
       startTimerCommand();
-      sidebarProvider.refresh(); // Refresh the tree view after starting timer
+      sidebarProvider.refresh();
     }),
     vscode.commands.registerCommand("waldo.stopTimer", () => {
       stopTimerCommand();
-      sidebarProvider.refresh(); // Refresh the tree view after stopping timer
+      sidebarProvider.refresh();
     }),
     vscode.commands.registerCommand("waldo.resetTimer", () => {
       resetTimerCommand();
-      sidebarProvider.refresh(); // Refresh the tree view after resetting timer
+      sidebarProvider.refresh();
     })
   );
 }
