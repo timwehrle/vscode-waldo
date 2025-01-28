@@ -9,7 +9,6 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
   "main": "./dist/extension.js",
   "files": [
     "node_modules/@vscode/codicons/dist/codicon.css",
@@ -19,20 +18,22 @@
   "contributes": {
     "commands": [
       {
-        "command": "waldo.showStats",
-        "title": "Waldo: Show Statistics"
-      },
-      {
         "command": "waldo.startTimer",
-        "title": "Waldo: Start Timer"
+        "title": "Start Timer",
+        "icon": "$(play-circle)",
+        "category": "Waldo"
       },
       {
         "command": "waldo.stopTimer",
-        "title": "Waldo: Stop Timer"
+        "title": "Stop Timer",
+        "icon": "$(debug-pause)",
+        "category": "Waldo"
       },
       {
         "command": "waldo.resetTimer",
-        "title": "Waldo: Reset Timer"
+        "title": "Reset Timer",
+        "icon": "$(refresh)",
+        "category": "Waldo"
       }
     ],
     "viewsContainers": {
@@ -47,9 +48,29 @@
     "views": {
       "waldo": [
         {
-          "id": "waldo.sidebar",
-          "name": "Statistics",
-          "type": "webview"
+          "id": "waldoTimerSidebar",
+          "name": "Dashboard",
+          "icon": "assets/clock-pause.svg",
+          "type": "tree"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "waldo.startTimer",
+          "when": "view == waldoTimerSidebar && !waldoTimer.isRunning",
+          "group": "navigation@1"
+        },
+        {
+          "command": "waldo.stopTimer",
+          "when": "view == waldoTimerSidebar && waldoTimer.isRunning",
+          "group": "navigation@1"
+        },
+        {
+          "command": "waldo.resetTimer",
+          "when": "view == waldoTimerSidebar",
+          "group": "navigation@2"
         }
       ]
     }

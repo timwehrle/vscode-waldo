@@ -1,175 +1,132 @@
 import * as vscode from "vscode";
 import { TimerService } from "../services/timerService";
-import { join } from "path";
-import { readFileSync } from "fs";
 
-export class SidebarProvider implements vscode.WebviewViewProvider {
-  private _view: vscode.WebviewView | undefined;
+export class SidebarProvider implements vscode.TreeDataProvider<TreeItem> {
+  private _onDidChangeTreeData: vscode.EventEmitter<
+    TreeItem | undefined | null | void
+  > = new vscode.EventEmitter<TreeItem | undefined | null | void>();
+  readonly onDidChangeTreeData: vscode.Event<
+    TreeItem | undefined | null | void
+  > = this._onDidChangeTreeData.event;
   private updateInterval: NodeJS.Timeout | undefined;
+  private view: vscode.TreeView<TreeItem> | undefined;
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(private readonly context: vscode.ExtensionContext) {
+    // First register as tree data provider
+    vscode.window.registerTreeDataProvider("waldoTimerSidebar", this);
 
-  /**
-   * Resolves the webview view and sets up the event listeners
-   */
-  resolveWebviewView(webviewView: vscode.WebviewView): void {
-    this._view = webviewView;
-
-    // Configure webview options
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [
-        vscode.Uri.joinPath(
-          this.context.extensionUri,
-          "src",
-          "views",
-          "sidebar"
-        ),
-        vscode.Uri.joinPath(
-          this.context.extensionUri,
-          "node_modules",
-          "@vscode",
-          "codicons",
-          "dist"
-        ),
-      ],
-    };
-
-    // Handle messages from the webview
-    this.setupMessageHandlers(webviewView.webview);
-
-    // Set initial HTML content
-    webviewView.webview.html = this.getHtmlContent();
-
-    // Start updating time when the view becomes visible
-    webviewView.onDidChangeVisibility(() => {
-      if (webviewView.visible) {
-        this.startUpdatingTime();
-      } else {
-        this.stopUpdatingTime();
-      }
+    // Then create the TreeView
+    this.view = vscode.window.createTreeView("waldoTimerSidebar", {
+      treeDataProvider: this,
+      showCollapseAll: false,
     });
 
-    // Start updating time immediately if the view is already visible
-    if (webviewView.visible) {
-      this.startUpdatingTime();
-    }
+    // Set initial context
+    this.updateContext();
+
+    // Start the update interval
+    this.startUpdatingTime();
   }
 
-  /**
-   * Sets up message handlers for communication between the webview and extension.
-   */
-  private setupMessageHandlers(webview: vscode.Webview): void {
-    webview.onDidReceiveMessage((message) => {
-      switch (message.command) {
-        case "startTimer":
-          vscode.commands.executeCommand("waldo.startTimer");
-          break;
-        case "stopTimer":
-          vscode.commands.executeCommand("waldo.stopTimer");
-          break;
-        case "resetTimer":
-          vscode.commands.executeCommand("waldo.resetTimer");
-          break;
-        case "showStats":
-          vscode.commands.executeCommand("waldo.showStats");
-          break;
-        default:
-          console.warn(`Unknown command: ${message.command}`);
-      }
-    });
+  private updateContext() {
+    const stats = TimerService.getStats();
+    vscode.commands.executeCommand(
+      "setContext",
+      "waldoTimer.isRunning",
+      stats.isTracking
+    );
   }
 
-  /**
-   * Generates the HTML content for the webview.
-   */
-  private getHtmlContent(): string {
-    const htmlPath = join(
-      this.context.extensionPath,
-      "src",
-      "views",
-      "sidebar",
-      "sidebar.html"
+  getTreeItem(element: TreeItem): vscode.TreeItem {
+    return element;
+  }
+
+  async getChildren(): Promise<TreeItem[]> {
+    const stats = TimerService.getStats();
+    const items: TreeItem[] = [];
+
+    // Time display with larger text and better formatting
+    items.push(
+      new TreeItem({
+        label: stats.formattedTime,
+        contextValue: "time",
+        description: "", // Clear description
+        tooltip: "Current session time",
+      })
     );
 
-    try {
-      let html = readFileSync(htmlPath, "utf-8");
+    // Status with descriptive text
+    items.push(
+      new TreeItem({
+        label: stats.isTracking ? "Active" : "Paused",
+        contextValue: "status",
+        description: stats.isTracking ? "Timer is running" : "Timer is stopped",
+        tooltip: stats.isTracking
+          ? "Timer is currently running"
+          : "Timer is currently paused",
+      })
+    );
 
-      // Inject Codicons CSS
-      const codiconsUri = this._view!.webview.asWebviewUri(
-        vscode.Uri.joinPath(
-          this.context.extensionUri,
-          "node_modules",
-          "@vscode/codicons",
-          "dist",
-          "codicon.css"
-        )
-      );
-
-      // Inject custom CSS
-      const stylesUri = this._view!.webview.asWebviewUri(
-        vscode.Uri.joinPath(
-          this.context.extensionUri,
-          "src",
-          "views",
-          "sidebar",
-          "sidebar.css"
-        )
-      );
-
-      // Replace placeholders in the HTML with actual URIs
-      html = html.replace(
-        "</head>",
-        `<link href="${codiconsUri}" rel="stylesheet" type="text/css">
-         <link href="${stylesUri}" rel="stylesheet" type="text/css">
-         </head>`
-      );
-
-      return html;
-    } catch (error) {
-      console.error(`Failed to load HTML content: ${error}`);
-      return `<html><body><h1>Failed to load HTML content</h1></body></html>`;
-    }
+    return items;
   }
 
-  /**
-   * Starts the interval to update the time in the webview.
-   */
   private startUpdatingTime() {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
     }
 
     this.updateInterval = setInterval(() => {
-      if (this._view) {
-        const time = TimerService.getStats().formattedTime;
-        const isTracking = TimerService.getStats().isTracking;
-        const idleTime = Math.floor(TimerService.getIdleTime() / 1000);
-
-        this._view.webview.postMessage({
-          type: "update-time",
-          time: time,
-          isTracking,
-          idleTime,
-        });
-      }
+      this._onDidChangeTreeData.fire();
+      this.updateContext();
     }, 1000);
   }
 
-  /**
-   * Stops the interval for updating the time.
-   */
-  private stopUpdatingTime(): void {
+  refresh(): void {
+    this._onDidChangeTreeData.fire();
+    this.updateContext();
+  }
+
+  dispose(): void {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
       this.updateInterval = undefined;
     }
+    this._onDidChangeTreeData.dispose();
+    this.view?.dispose();
   }
+}
 
-  /**
-   * Cleans up resources when the provider is disposed.
-   */
-  dispose(): void {
-    this.stopUpdatingTime();
+class TreeItem extends vscode.TreeItem {
+  constructor({
+    label,
+    contextValue,
+    description,
+    tooltip,
+  }: {
+    label: string;
+    contextValue: string;
+    description: string;
+    tooltip: string;
+  }) {
+    super(label, vscode.TreeItemCollapsibleState.None);
+
+    this.description = description;
+    this.tooltip = tooltip;
+    this.contextValue = contextValue;
+
+    // Add icons based on context
+    switch (contextValue) {
+      case "time":
+        this.iconPath = new vscode.ThemeIcon("clock");
+        break;
+      case "status":
+        this.iconPath = new vscode.ThemeIcon(
+          label === "Active" ? "play-circle" : "debug-pause",
+          new vscode.ThemeColor(
+            label === "Active" ? "testing.iconPassed" : "testing.iconSkipped"
+          )
+        );
+        break;
+    }
   }
 }

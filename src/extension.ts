@@ -7,9 +7,10 @@ import { resetTimerCommand } from "./commands/resetTimer";
 import { showStatsCommand } from "./commands/showStats";
 
 export function activate(context: vscode.ExtensionContext) {
+  // Initialize the timer service
   TimerService.initialize(context);
 
-  // Create and register the sidebar provider
+  // Create the sidebar provider
   const sidebarProvider = new SidebarProvider(context);
 
   // Track activity across different events
@@ -29,13 +30,25 @@ export function activate(context: vscode.ExtensionContext) {
     );
   });
 
-  // Register providers and commands
+  // Register the TreeDataProvider and commands
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider("waldo.sidebar", sidebarProvider),
+    vscode.window.registerTreeDataProvider(
+      "waldoTimerSidebar",
+      sidebarProvider
+    ),
     vscode.commands.registerCommand("waldo.showStats", showStatsCommand),
-    vscode.commands.registerCommand("waldo.startTimer", startTimerCommand),
-    vscode.commands.registerCommand("waldo.stopTimer", stopTimerCommand),
-    vscode.commands.registerCommand("waldo.resetTimer", resetTimerCommand)
+    vscode.commands.registerCommand("waldo.startTimer", () => {
+      startTimerCommand();
+      sidebarProvider.refresh(); // Refresh the tree view after starting timer
+    }),
+    vscode.commands.registerCommand("waldo.stopTimer", () => {
+      stopTimerCommand();
+      sidebarProvider.refresh(); // Refresh the tree view after stopping timer
+    }),
+    vscode.commands.registerCommand("waldo.resetTimer", () => {
+      resetTimerCommand();
+      sidebarProvider.refresh(); // Refresh the tree view after resetting timer
+    })
   );
 }
 
