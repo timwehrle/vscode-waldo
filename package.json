@@ -20,7 +20,7 @@
       {
         "command": "waldo.startTimer",
         "title": "Start Timer",
-        "icon": "$(play-circle)",
+        "icon": "$(play)",
         "category": "Waldo"
       },
       {
@@ -73,6 +73,21 @@
           "group": "navigation@2"
         }
       ]
+    },
+    "configuration": {
+      "title": "Waldo",
+      "properties": {
+        "waldo.breakInterval": {
+          "type": "number",
+          "default": 30,
+          "description": "Interval in minutes after which a break should be prompted."
+        },
+        "waldo.breakDuration": {
+          "type": "number",
+          "default": 5,
+          "description": "Duration of the break in minutes."
+        }
+      }
     }
   },
   "scripts": {

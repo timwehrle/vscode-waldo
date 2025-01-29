@@ -13,23 +13,6 @@ export function activate(context: vscode.ExtensionContext) {
   // Create the sidebar provider
   const sidebarProvider = new SidebarProvider(context);
 
-  // Track activity across different events
-  const activityEvents = [
-    vscode.window.onDidChangeTextEditorSelection,
-    vscode.workspace.onDidChangeTextDocument,
-    vscode.window.onDidChangeActiveTextEditor,
-    vscode.window.onDidChangeWindowState,
-    vscode.workspace.onDidSaveTextDocument,
-  ];
-
-  activityEvents.forEach((event) => {
-    context.subscriptions.push(
-      event(() => {
-        TimerService.updateLastActivity();
-      })
-    );
-  });
-
   // Register the TreeDataProvider and commands
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider(
